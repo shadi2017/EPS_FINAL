@@ -1,0 +1,6 @@
+.venv/
+__pycache__/
+*.pyc
+Cert_Out/
+Img_Out/
+.pytest_cache/
