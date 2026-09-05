@@ -1,0 +1,242 @@
+import streamlit as st
+import pandas as pd
+from PIL import Image, ImageDraw, ImageFont
+import arabic_reshaper
+from bidi.algorithm import get_display
+import io, os, requests, re, time
+import tkinter as tk
+from tkinter import filedialog
+
+# --- 1. Helpers for Windows Folder Picking ---
+def select_folder(title="Select Folder"):
+    root = tk.Tk()
+    root.withdraw()
+    root.attributes('-topmost', True)
+    path = filedialog.askdirectory(title=title)
+    root.destroy()
+    return path
+
+def select_file(title="Select File", types=[("All files", "*.*")]):
+    root = tk.Tk()
+    root.withdraw()
+    root.attributes('-topmost', True)
+    path = filedialog.askopenfilename(title=title, filetypes=types)
+    root.destroy()
+    return path
+
+# --- 2. Processing Engine (Arabic & Smart Transparency) ---
+def fix_arabic(text):
+    if pd.isna(text) or str(text).strip() == "": return ""
+    reshaper = arabic_reshaper.ArabicReshaper(configuration={'delete_harakat': False, 'support_ligatures': True, 'arabic': True})
+    return get_display(reshaper.reshape(str(text)))
+
+def hex_to_rgb(h):
+    return tuple(int(h.lstrip('#')[i:i+2], 16) for i in (0, 2, 4))
+
+@st.cache_data
+def download_font(url):
+    try:
+        r = requests.get(url, timeout=10)
+        return r.content if r.status_code == 200 else None
+    except: return None
+
+def clean_filename(name):
+    return re.sub(r'[\\/*?:"<>|]', "", str(name)).strip()
+
+def make_frame_smart_transparent(frame_pil):
+    """Protects logos/text by only clearing the connected center background"""
+    img = frame_pil.convert("RGBA")
+    width, height = img.size
+    center_point = (width // 2, height // 2)
+    # Smart Flood Fill logic: clears center, stops at borders/logos
+    ImageDraw.floodfill(img, center_point, (0, 0, 0, 0), thresh=35)
+    return img
+
+# --- 3. UI Setup ---
+st.set_page_config(page_title="EPS Local Master Pro", layout="wide", page_icon="🛡️")
+AMIRI_FONT_URL = "https://github.com/google/fonts/raw/main/ofl/amiri/Amiri-Regular.ttf"
+fnt_bytes = download_font(AMIRI_FONT_URL)
+
+st.sidebar.title("🛡️ EPS Media Engine")
+app_mode = st.sidebar.radio("Navigation:", ["📜 Certificate Generator", "📸 Batch Photo Framer"])
+
+# --- 4. MODE: CERTIFICATE GENERATOR (Everything Included) ---
+if app_mode == "📜 Certificate Generator":
+    st.title("📜 Professional Local Certificate Generator")
+    
+    with st.sidebar:
+        st.header("📁 File & Folder Selection")
+        if st.button("🖼️ Select Template Image"):
+            st.session_state.tpl_path = select_file("Select Certificate Template")
+        st.caption(f"Template: {st.session_state.get('tpl_path', 'Not Selected')}")
+
+        if st.button("📊 Select Excel Sheet"):
+            st.session_state.xls_path = select_file("Select Student Data", [("Excel files", "*.xlsx *.csv")])
+        st.caption(f"Data: {st.session_state.get('xls_path', 'Not Selected')}")
+
+        if st.button("📂 Select Output Folder"):
+            st.session_state.cert_out = select_folder("Where to save results?")
+        st.caption(f"Output: {st.session_state.get('cert_out', 'C:/EPS_Certs')}")
+
+        sig_file = st.file_uploader("Upload Director Signature (PNG)", type=['png'])
+
+    # Main Logic for Certificates
+    if st.session_state.get('tpl_path') and st.session_state.get('xls_path') and fnt_bytes:
+        df = pd.read_excel(st.session_state.xls_path) if st.session_state.xls_path.endswith('.xlsx') else pd.read_csv(st.session_state.xls_path)
+        img_temp = Image.open(st.session_state.tpl_path)
+        W, H = img_temp.size
+        
+        with st.sidebar:
+            st.divider()
+            st.subheader("👤 Name Settings")
+            name_col = st.selectbox("Name Column", df.columns)
+            n_x = st.slider("Name X", 0, W, W // 2)
+            n_y = st.slider("Name Y", 0, H, H // 2)
+            n_size = st.number_input("Name Size", 10, 1000, 100)
+            n_clr = st.color_picker("Name Color", "#002d56")
+
+            st.divider()
+            show_grade = st.checkbox("Enable Grade/Rating")
+            g_x, g_y, g_size, g_clr, g_col = 0, 0, 0, "#000000", ""
+            if show_grade:
+                g_col = st.selectbox("Grade Column", df.columns)
+                g_x = st.slider("Grade X", 0, W, W // 2)
+                g_y = st.slider("Grade Y", 0, H, H // 2 + 100)
+                g_size = st.number_input("Grade Size", 10, 500, 60)
+                g_clr = st.color_picker("Grade Color", "#333333")
+
+            st.divider()
+            show_date = st.checkbox("Enable Date")
+            d_text, d_x, d_y, d_size, d_clr = "", 0, 0, 0, "#000000"
+            if show_date:
+                d_text = st.text_input("Enter Date:", "August 2024")
+                d_x = st.slider("Date X", 0, W, W // 4)
+                d_y = st.slider("Date Y", 0, H, H - 100)
+                d_size = st.number_input("Date Size", 10, 500, 40)
+                d_clr = st.color_picker("Date Color", "#000000")
+
+            st.divider()
+            show_sig = st.checkbox("Enable Signature Image")
+            s_x, s_y, s_scale = 0, 0, 1.0
+            if show_sig and sig_file:
+                s_x = st.slider("Signature X", 0, W, W - 300)
+                s_y = st.slider("Signature Y", 0, H, H - 200)
+                s_scale = st.slider("Signature Scale", 0.1, 2.0, 0.5)
+
+        # PREVIEW AREA
+        st.subheader("👁️ Layout Preview")
+        preview_p = Image.open(st.session_state.tpl_path).convert("RGB")
+        draw = ImageDraw.Draw(preview_p)
+        font_obj = ImageFont.truetype(io.BytesIO(fnt_bytes), n_size)
+        
+        # Draw Name
+        draw.text((n_x, n_y), fix_arabic(df.iloc[0][name_col]), fill=hex_to_rgb(n_clr), font=font_obj, anchor="mm")
+        # Draw Grade
+        if show_grade:
+            f_g = ImageFont.truetype(io.BytesIO(fnt_bytes), g_size)
+            draw.text((g_x, g_y), fix_arabic(df.iloc[0][g_col]), fill=hex_to_rgb(g_clr), font=f_g, anchor="mm")
+        # Draw Date
+        if show_date:
+            f_d = ImageFont.truetype(io.BytesIO(fnt_bytes), d_size)
+            draw.text((d_x, d_y), fix_arabic(d_text), fill=hex_to_rgb(d_clr), font=f_d, anchor="mm")
+        # Draw Signature
+        if show_sig and sig_file:
+            s_img = Image.open(sig_file).convert("RGBA")
+            s_res = s_img.resize((int(s_img.width * s_scale), int(s_img.height * s_scale)), Image.Resampling.LANCZOS)
+            preview_p.paste(s_res, (s_x, s_y), s_res)
+
+        st.image(preview_p, caption="Fixed Preview - Adjust from Sidebar", use_container_width=True)
+
+        if st.button("🚀 Run Bulk Production (Save to Disk)"):
+            out_dir = st.session_state.get('cert_out', 'C:/EPS_Certs')
+            if not os.path.exists(out_dir): os.makedirs(out_dir)
+            
+            pdf_list = []
+            progress_bar = st.progress(0)
+            for i, row in df.iterrows():
+                img = Image.open(st.session_state.tpl_path).convert("RGB")
+                d = ImageDraw.Draw(img)
+                d.text((n_x, n_y), fix_arabic(row[name_col]), fill=hex_to_rgb(n_clr), font=font_obj, anchor="mm")
+                if show_grade: d.text((g_x, g_y), fix_arabic(row[g_col]), fill=hex_to_rgb(g_clr), font=f_g, anchor="mm")
+                if show_date: d.text((d_x, d_y), fix_arabic(d_text), fill=hex_to_rgb(d_clr), font=f_d, anchor="mm")
+                if show_sig and sig_file: img.paste(s_res, (s_x, s_y), s_res)
+                
+                # Save Individual JPG
+                img.save(os.path.join(out_dir, f"{clean_filename(row[name_col])}.jpg"), "JPEG", quality=95)
+                pdf_list.append(img)
+                progress_bar.progress((i+1)/len(df))
+            
+            # Save Combined PDF
+            pdf_list[0].save(os.path.join(out_dir, "Combined_Certificates.pdf"), save_all=True, append_images=pdf_list[1:])
+            st.success(f"✅ Production Complete! Folder: {out_dir}")
+
+# --- 5. MODE: BATCH PHOTO FRAMER (The Smart Edition) ---
+elif app_mode == "📸 Batch Photo Framer":
+    st.title("📸 Turbo Photo Brander (Smart Transparency)")
+    
+    with st.sidebar:
+        st.header("📂 Local Folder Paths")
+        if st.button("📸 Select Input Folder"):
+            st.session_state.in_dir = select_folder("Folder with Original Photos")
+        st.caption(f"Input: {st.session_state.get('in_dir', 'Not Selected')}")
+
+        if st.button("💾 Select Output Folder"):
+            st.session_state.out_dir = select_folder("Folder to save Branded Photos")
+        st.caption(f"Output: {st.session_state.get('out_dir', 'Not Selected')}")
+
+        st.divider()
+        st.header("🖼️ Frame Overrides")
+        custom_l = st.file_uploader("Manual Landscape Frame", type=['png', 'jpg'])
+        custom_p = st.file_uploader("Manual Portrait Frame", type=['png', 'jpg'])
+
+    in_path = st.session_state.get('in_dir')
+    if in_path and os.path.exists(in_path):
+        files = [f for f in os.listdir(in_path) if f.lower().endswith(('.png', '.jpg', '.jpeg'))]
+        st.write(f"📂 Found {len(files)} photos in directory.")
+
+        if files:
+            # Detect orientation and frame for the first image preview
+            test_img = Image.open(os.path.join(in_path, files[0])).convert("RGBA")
+            
+            def get_f_logic(p_img):
+                is_l = p_img.width > p_img.height
+                src = (custom_l if is_l else custom_p) if (custom_l or custom_p) else None
+                if not src:
+                    path = "frame_land.png" if is_l else "frame_port.png"
+                    src = path if os.path.exists(path) else None
+                if src:
+                    return make_frame_smart_transparent(Image.open(src))
+                return None
+
+            active_frame = get_f_logic(test_img)
+            if active_frame:
+                # Build Preview
+                res_f = active_frame.resize(test_img.size, Image.Resampling.LANCZOS)
+                canvas = Image.new("RGBA", test_img.size)
+                canvas.paste(test_img, (0,0)) # Photo goes UNDER
+                canvas.alpha_composite(res_f) # Frame goes OVER
+                
+                st.subheader("👁️ Smart Frame Detection Preview")
+                st.image(canvas.convert("RGB"), caption="Logo & Text are now safe from blurring!", use_container_width=True)
+
+                if st.button("🚀 Start Local Processing"):
+                    out_path = st.session_state.get('out_dir', 'C:/EPS_Photos')
+                    if not os.path.exists(out_path): os.makedirs(out_path)
+                    
+                    p_bar = st.progress(0)
+                    start_t = time.time()
+                    for i, fname in enumerate(files):
+                        p_img = Image.open(os.path.join(in_path, fname)).convert("RGBA")
+                        curr_f = get_f_logic(p_img)
+                        if curr_f:
+                            f_res = curr_f.resize(p_img.size, Image.Resampling.LANCZOS)
+                            final = Image.new("RGBA", p_img.size)
+                            final.paste(p_img, (0,0))
+                            final.alpha_composite(f_res)
+                            # High-quality save directly to disk
+                            final.convert("RGB").save(os.path.join(out_path, fname), "JPEG", quality=95, subsampling=0)
+                        p_bar.progress((i+1)/len(files))
+                    
+                    st.success(f"✅ Processed {len(files)} photos in {round(time.time()-start_t, 2)}s.")
+            else:
+                st.error("⚠️ Default frames (`frame_land.png` or `frame_port.png`) not found in the project folder!")
