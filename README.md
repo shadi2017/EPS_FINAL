@@ -1,61 +1,65 @@
 # EPS Studio
 
-مساحة عمل محلية تضم أداتين: إصدار شهادات من Excel/CSV، وإضافة إطارات إلى دفعات الصور.
+A local production workspace for batch certificates and framed photos. All application controls, messages, and reports use English. Arabic text in your source data remains supported and is rendered without translating it.
 
-## التشغيل على Windows
+## Start on Windows
 
-1. ثبّت Python 3.12 مع إضافته إلى PATH.
-2. شغّل `setup_eps.bat` مرة واحدة لتجهيز البيئة الخاصة بالمشروع (يحتاج إنترنت).
-3. شغّل `run_eps.bat`، أو `EPS_Launch.vbs` للتشغيل دون نافذة أوامر.
+1. Install Python 3.12 and add it to PATH.
+2. Run `setup_eps.bat` once to install the project environment. Setup requires internet access.
+3. Run `run_eps.bat`, or use `EPS_Launch.vbs` for a hidden console.
 
-بعد التجهيز تعمل المعالجة دون تنزيل خطوط أو رفع الملفات لخدمة خارجية. الخط الافتراضي Arial الموجود في Windows؛ يمكن رفع خط TTF/OTF مخصص. لا تنقل مجلد `.venv` بين الأجهزة، شغّل ملف التجهيز على الجهاز الجديد.
+After setup, processing runs locally without downloading fonts or uploading your files. Windows Arial is the default font; upload a TTF/OTF file to use another font. Run setup again on a new computer instead of copying `.venv`.
 
-## الشهادات
+## Certificate Studio
 
-- اختر قالبًا من الصور الموجودة أو ارفع قالبك، ثم اختر ملف البيانات أو ارفعه.
-- يدعم Excel الورقة الأولى، وCSV بترميز UTF-8 أو Windows Arabic. تُحفظ القيم النصية والأصفار البادئة في CSV.
-- اختر عمود الاسم، ثم اضبط المواضع كنسب من حجم القالب. الأسماء الطويلة تصغر تلقائيًا حتى حجم 10.
-- يمكن إضافة التقدير والتاريخ وتوقيع PNG وخط مخصص.
-- راجع أي سجل، ونزّل شهادة تجريبية قبل إنتاج الدفعة.
-- حفظ تنسيق النصوص واستعادته يشمل الموضع والحجم واللون والعرض فقط؛ الملفات واختيار الأعمدة والتوقيع تُحدد لكل جلسة.
-- النتائج JPG، مع PDF اختياري بدقة تخطيط 150 DPI. ملفات PDF تحتوي صور الشهادات، وليست نصوصًا قابلة للتحرير.
+- Select a library template or upload an image. Upload Excel/CSV data or select a project data file.
+- Excel reads the first worksheet. CSV supports UTF-8 and Windows Arabic encoding. Text values and CSV leading zeros are preserved.
+- Select the student name column. Position text using percentages of template dimensions.
+- Long names shrink to fit the chosen width, down to a minimum font size of 10.
+- Optionally include a grade, date, transparent PNG signature, or custom font.
+- Preview any record and download a sample before exporting the batch.
+- Saved text layouts include positions, font sizes, colors, and text widths. Select your source files, columns, signature, and custom font for each session.
+- Export individual JPEG files and an optional combined PDF. PDF page dimensions use 150 DPI; pages contain certificate images rather than editable text.
 
-## الصور
+## Photo Studio
 
-- اختر مجلد الصور؛ تتم قراءة الملفات المباشرة فقط، دون المجلدات الفرعية.
-- يستخدم `frame_land.png` للأفقي و`frame_port.png` للرأسي والمربع، ويمكن استبدالهما من الواجهة.
-- التفريغ الذكي يزيل اللون المتصل بالمركز فقط. لا يضمن الحفاظ على أجزاء التصميم المتصلة بنفس الخلفية؛ المعاينة ضرورية. يمكن إيقافه للإطارات الشفافة.
-- يُصحح اتجاه EXIF قبل اختيار الإطار. يُمدد الإطار إلى أبعاد الصورة مثل النسخة الأصلية؛ الأفضل مطابقة نسبة الإطار لنسبة الصور لتجنب تمدد الشعار.
-- يمكن الحفاظ على المقاس الأصلي أو تقليله إلى حد أقصى. التصدير دائمًا JPG بامتداد صحيح.
+- Select a source folder. Only its direct image files are processed, not subfolders.
+- `frame_land.png` handles landscape photos; `frame_port.png` handles portrait and square photos. Optional uploads override either frame.
+- Center-background removal clears the color connected to the center. It can affect design elements connected to that background; review the preview. Turn it off for transparent frames.
+- EXIF orientation is corrected before selecting a frame.
+- Frames stretch to the photo dimensions. Match frame and photo aspect ratios to avoid stretching logos.
+- Preserve original resolution or choose a maximum edge length. Outputs are always JPEG files with a `.jpg` extension.
 
-## سلامة النتائج
+## Output protection
 
-كل عملية تُنشئ مجلدًا منفصلًا داخل مجلد الحفظ المختار. الأسماء مرقمة لمنع التعارض، ولا تُستبدل الصور الأصلية. السجلات بدون اسم تُتخطى. الملف التالف لا يوقف بقية الدفعة. يحتوي `report.csv` على نجاح أو فشل أو تخطي كل عنصر والسبب. فشل صلاحيات الحفظ أو امتلاء القرص قد يترك دفعة جزئية؛ راجع رسالة الخطأ والملفات قبل إعادة التشغيل.
+Every export creates a separate folder inside the selected output directory. Numbered filenames prevent collisions, and original images are not overwritten. Missing names are skipped. A corrupt image does not stop the rest of the batch. Each `report.csv` records the status and error for every item.
 
-## هيكل المشروع
+Disk or permission failures can leave a partial batch. Review the error and exported files before retrying.
+
+## Project structure
 
 ```text
-app.py                   نقطة التشغيل
-eps_studio/core.py       القراءة والرسم والتصدير
-eps_studio/ui.py         غلاف التطبيق والتنقل والمظهر
-eps_studio/certificates_ui.py واجهة الشهادات
-eps_studio/photos_ui.py  واجهة الصور
-eps_studio/shared_ui.py  عناصر الواجهة المشتركة والتخزين المؤقت
-tests/test_core.py       اختبارات سلامة المعالجة
-.streamlit/config.toml   المظهر وإعدادات التشغيل المحلي
-requirements.txt         مكتبات المشروع
-app_legacy.py.bak        نسخة الكود الأصلي قبل التطوير
-Cert_Out/                مخرجات الشهادات
-Img_Out/                 مخرجات الصور
+app.py                         Application entry point
+eps_studio/core.py             File reading, rendering, and batch exports
+eps_studio/ui.py               Navigation and visual theme
+eps_studio/certificates_ui.py   Certificate workspace
+eps_studio/photos_ui.py         Photo workspace
+eps_studio/shared_ui.py         Shared controls and cached resources
+tests/test_core.py             Processing regression tests
+.streamlit/config.toml         Theme and local server settings
+requirements.txt               Tested dependency versions
+app_legacy.py.bak               Original application backup
+Cert_Out/                      Certificate exports
+Img_Out/                       Photo exports
 ```
 
-تم فصل المعالجة عن Streamlit لإعادة استخدامها واختبارها دون واجهة. يتم تخزين قراءة الملفات وتجهيز الإطارات والخطوط مؤقتًا، واستخدام JPEG المُصدّر لبناء PDF بدل الاحتفاظ بكل صور الشهادات غير المضغوطة.
+The processing engine is independent of Streamlit. File reads, frame preparation, and fonts use bounded caches. PDF generation reuses exported JPEG files instead of retaining all uncompressed certificate images.
 
-## التحقق
+## Verification
 
 ```powershell
 .\.venv\Scripts\python.exe -m unittest discover -s tests -v
 .\.venv\Scripts\python.exe -m pip check
 ```
 
-لا يوجد قياس مقارن شامل للأداء؛ زمن التنفيذ يعتمد على عدد الصور وأبعادها والقرص. لا يتم استخدام المعالجة المتوازية غير المحدودة لتجنب ضغط الذاكرة.
+Performance depends on image dimensions, batch size, and disk speed. No comprehensive before-and-after benchmark has been performed.

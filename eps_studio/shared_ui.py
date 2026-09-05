@@ -1,4 +1,4 @@
-"""Arabic-first workspace for two independent production workflows."""
+"""Shared controls for the two production workspaces."""
 from pathlib import Path
 import streamlit as st
 from .core import TextStyle, open_image, read_table, prepare_frame
@@ -37,16 +37,16 @@ def folder_field(label, key, default):
     with a:
         value = st.text_input(label, value=str(default), key=key)
     with b:
-        st.button("اختيار", key=key+"_pick", on_click=pick_folder, args=(key,), width="stretch")
+        st.button("Browse", key=key+"_pick", on_click=pick_folder, args=(key,), width="stretch")
     return value
 
 def style_controls(title, prefix, y, size):
     with st.expander(title, expanded=prefix=="name"):
-        x = st.slider("الموضع الأفقي %", 0, 100, 50, key=prefix+"_x")
-        y = st.slider("الموضع الرأسي %", 0, 100, y, key=prefix+"_y")
-        size = st.number_input("حجم الخط", 10, 1000, size, key=prefix+"_size")
-        color = st.color_picker("لون النص", "#17324d", key=prefix+"_color")
-        width = st.slider("أقصى عرض للنص %", 10, 100, 85, key=prefix+"_width")
+        x = st.slider("Horizontal position (%)", 0, 100, 50, key=prefix+"_x")
+        y = st.slider("Vertical position (%)", 0, 100, y, key=prefix+"_y")
+        size = st.number_input("Font size", 10, 1000, size, key=prefix+"_size")
+        color = st.color_picker("Text color", "#17324d", key=prefix+"_color")
+        width = st.slider("Maximum text width (%)", 10, 100, 85, key=prefix+"_width")
     return TextStyle(x,y,size,color,width)
 
 def result_panel(key):
@@ -56,18 +56,18 @@ def result_panel(key):
     folder, records, duration = result
     success = sum(r["status"]=="success" for r in records)
     st.divider()
-    st.subheader("نتيجة آخر عملية")
+    st.subheader("Latest export")
     a,b,c = st.columns(3)
-    a.metric("تم بنجاح", success)
-    b.metric("تحتاج مراجعة", len(records)-success)
-    c.metric("الوقت المستغرق", f"{duration:.1f} ثانية")
+    a.metric("Completed", success)
+    b.metric("Needs attention", len(records)-success)
+    c.metric("Elapsed time", f"{duration:.1f} sec")
     if success == len(records):
-        st.success("اكتمل التصدير بنجاح.")
+        st.success("Export completed successfully.")
     else:
-        st.warning("انتهت العملية. راجع تفاصيل العناصر التي لم تكتمل أدناه.")
+        st.warning("Batch finished. Review the items that need attention below.")
     st.code(str(folder), language=None)
     st.dataframe(records, width="stretch", hide_index=True)
     report = Path(folder)/"report.csv"
     if report.exists():
-        st.download_button("تنزيل تقرير النتائج", report.read_bytes(), "report.csv", "text/csv", key=key+"_report")
+        st.download_button("Download report", report.read_bytes(), "report.csv", "text/csv", key=key+"_report")
 

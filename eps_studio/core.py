@@ -49,7 +49,7 @@ def default_font():
     for path in [ROOT / "assets/fonts/Amiri-Regular.ttf", Path("C:/Windows/Fonts/arial.ttf"), Path("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf")]:
         if path.exists():
             return str(path)
-    raise ValueError("أضف خط TTF من إعدادات التصميم لدعم النص العربي.")
+    raise ValueError("Upload a TTF font in layout settings to render your text.")
 
 @lru_cache(maxsize=128)
 def font(source, size):
@@ -121,7 +121,7 @@ def export_certificates(frame, name_column, renderer, destination, make_pdf=True
     pdf = canvas.Canvas(str(folder / "certificates.pdf")) if make_pdf else None
     for i, (_, row) in enumerate(frame.iterrows()):
         name = text_value(row[name_column])
-        record = dict(source=name or f"Row {i+1}", status="skipped", output="", error="الاسم فارغ")
+        record = dict(source=name or f"Row {i+1}", status="skipped", output="", error="Name is empty")
         if name:
             try:
                 image = renderer(row)
@@ -152,7 +152,7 @@ def export_photos(files, frames, destination, quality=95, max_edge=0, progress=N
             photo = open_image(path)
             orientation = "landscape" if photo.width > photo.height else "portrait"
             if frames.get(orientation) is None:
-                raise ValueError("لا يوجد إطار مناسب لاتجاه هذه الصورة")
+                raise ValueError("No frame is available for this photo orientation")
             image = frame_photo(photo, frames[orientation], max_edge)
             target = folder / f"{i+1:05d}_{safe_name(path.stem)}.jpg"
             image.save(target, "JPEG", quality=quality, subsampling=0)
