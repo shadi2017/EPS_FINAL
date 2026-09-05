@@ -5,13 +5,15 @@ from .photos_ui import photos
 def main():
     st.set_page_config(page_title="EPS Studio",page_icon="◈",layout="wide")
     st.markdown("""<style>
-    .stApp {background:#f5f7fb;color:#17324d}
+    .stApp {background:#f5f7fb;color:#17324d;font-family:"Segoe UI",Tahoma,Arial,sans-serif}
+    h1,h2,h3,p,label,button,input,select {font-family:"Segoe UI",Tahoma,Arial,sans-serif!important}
     .stMainBlockContainer {max-width:1440px;padding-top:2.5rem}
     [data-testid="stSidebar"] {background:#101f32}
     [data-testid="stSidebar"] * {color:#ecf3fa}
     [data-testid="stSidebar"] [data-testid="stCaptionContainer"] {opacity:.65}
     h1,h2,h3,p,label,[data-testid="stCaptionContainer"] {direction:rtl;text-align:right}
     h1 {font-weight:800!important;letter-spacing:-1px;font-size:2.6rem!important}
+    [data-testid="stSidebar"] h1 {font-size:1.65rem!important;direction:ltr;letter-spacing:0;text-align:left;white-space:nowrap}
     [data-testid="stVerticalBlockBorderWrapper"] {background:white;border-radius:16px}
     [data-testid="stMetric"] {background:#eaf0f7;padding:16px;border-radius:12px;text-align:right}
     .stButton button,.stDownloadButton button {border-radius:9px;min-height:42px}

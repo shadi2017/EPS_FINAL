@@ -1,11 +1,8 @@
 from pathlib import Path
-from dataclasses import asdict
-import io
-import json
 import time
 import streamlit as st
-from .core import ROOT, IMAGE_EXTENSIONS, TextStyle, default_font, open_image, render_certificate, frame_photo, export_certificates, export_photos
-from .shared_ui import table, image_data, prepared, folder_field, style_controls, result_panel
+from .core import ROOT, IMAGE_EXTENSIONS, open_image, frame_photo, export_photos
+from .shared_ui import prepared, folder_field, result_panel
 
 def photos():
     st.title("صور بهوية واحدة")
@@ -46,9 +43,9 @@ def photos():
             photo = open_image(selected)
             frame = frames["landscape" if photo.width>photo.height else "portrait"]
             a,b = st.columns(2)
-            a.image(photo,caption="الأصل",use_container_width=True)
+            a.image(photo,caption="الأصل",width="stretch")
             if frame is not None:
-                b.image(frame_photo(photo,frame,limit),caption="بعد إضافة الإطار",use_container_width=True)
+                b.image(frame_photo(photo,frame,limit),caption="بعد إضافة الإطار",width="stretch")
             else:
                 b.info("أضف إطارًا مناسبًا لاتجاه الصورة.")
         except Exception as exc:
@@ -57,7 +54,7 @@ def photos():
         st.subheader("03 / التصدير")
         output = folder_field("مجلد حفظ الصور","photo_output",ROOT/"Img_Out")
         st.caption("الصور الأصلية محفوظة. يتم إنشاء مجلد جديد لكل دفعة مع تقرير تفصيلي.")
-        if st.button("تجهيز الصور",type="primary",use_container_width=True,disabled=not output.strip() or all(f is None for f in frames.values())):
+        if st.button("تجهيز الصور",type="primary",width="stretch",disabled=not output.strip() or all(f is None for f in frames.values())):
             start = time.perf_counter()
             progress = st.progress(0,text="جارٍ تجهيز الصور…")
             folder, records = export_photos(files,frames,output,quality,limit,progress.progress)

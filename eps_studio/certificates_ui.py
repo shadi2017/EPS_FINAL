@@ -4,8 +4,8 @@ import io
 import json
 import time
 import streamlit as st
-from .core import ROOT, IMAGE_EXTENSIONS, TextStyle, default_font, open_image, render_certificate, frame_photo, export_certificates, export_photos
-from .shared_ui import table, image_data, prepared, folder_field, style_controls, result_panel
+from .core import ROOT, default_font, render_certificate, export_certificates
+from .shared_ui import table, image_data, folder_field, style_controls, result_panel
 
 def certificates():
     st.title("شهادات تستحق أصحابها")
@@ -44,37 +44,38 @@ def certificates():
     if not valid.all():
         st.warning(f"سيتم تخطي {int((~valid).sum())} سجل بدون اسم وتسجيله في التقرير.")
     with st.expander("مراجعة البيانات"):
-        st.dataframe(df, use_container_width=True, hide_index=True)
+        st.dataframe(df, width="stretch", hide_index=True)
     controls, preview = st.columns([1,2], gap="large")
     with controls:
         st.subheader("02 / التصميم")
-        preset = st.file_uploader("استعادة إعدادات تصميم", type=["json"])
-        if st.button("تطبيق الإعدادات", disabled=preset is None):
-            try:
-                values = json.loads(preset.getvalue())
-                updates = {}
-                for prefix in ("name", "grade", "date"):
-                    entry = values.get(prefix)
-                    if entry is None:
-                        continue
-                    for field, value in entry.items():
-                        if field in {"x","y","width","size"}:
-                            low, high = (10,1000) if field=="size" else (10,100) if field=="width" else (0,100)
-                            if type(value) not in (int,float) or not low <= value <= high:
-                                raise ValueError("قيمة إعداد خارج النطاق")
-                            updates[prefix+"_"+field] = int(value)
-                        elif field=="color":
-                            import re
-                            if not isinstance(value,str) or not re.fullmatch(r"#[0-9a-fA-F]{6}",value):
-                                raise ValueError("لون غير صالح")
-                            updates[prefix+"_color"] = value
-                st.session_state.update(updates)
-                st.success("تم استرجاع مواضع النصوص وأحجامها وألوانها.")
-            except (ValueError, TypeError, AttributeError) as exc:
-                st.error(f"تعذر قراءة الإعدادات: {exc}")
-        custom_font = st.file_uploader("خط مخصص · اختياري", type=["ttf","otf"])
-        font_source = custom_font.getvalue() if custom_font else default_font()
-        name_style = style_controls("اسم الطالب", "name",50,100)
+        with st.expander("الخط واستعادة التنسيق"):
+            preset = st.file_uploader("استعادة إعدادات تصميم", type=["json"])
+            if st.button("تطبيق الإعدادات", disabled=preset is None):
+                try:
+                    values = json.loads(preset.getvalue())
+                    updates = {}
+                    for prefix in ("name", "grade", "date"):
+                        entry = values.get(prefix)
+                        if entry is None:
+                            continue
+                        for field, value in entry.items():
+                            if field in {"x","y","width","size"}:
+                                low, high = (10,1000) if field=="size" else (10,100) if field=="width" else (0,100)
+                                if type(value) not in (int,float) or not low <= value <= high:
+                                    raise ValueError("قيمة إعداد خارج النطاق")
+                                updates[prefix+"_"+field] = int(value)
+                            elif field=="color":
+                                import re
+                                if not isinstance(value,str) or not re.fullmatch(r"#[0-9a-fA-F]{6}",value):
+                                    raise ValueError("لون غير صالح")
+                                updates[prefix+"_color"] = value
+                    st.session_state.update(updates)
+                    st.success("تم استرجاع مواضع النصوص وأحجامها وألوانها.")
+                except (ValueError, TypeError, AttributeError) as exc:
+                    st.error(f"تعذر قراءة الإعدادات: {exc}")
+            custom_font = st.file_uploader("خط مخصص · اختياري", type=["ttf","otf"])
+            font_source = custom_font.getvalue() if custom_font else default_font()
+        name_style = style_controls("اسم الطالب", "name",60,80)
         show_grade = st.checkbox("إضافة التقدير")
         grade_col = st.selectbox("عمود التقدير", df.columns) if show_grade else None
         grade_style = style_controls("تنسيق التقدير","grade",60,60) if show_grade else None
@@ -97,7 +98,7 @@ def certificates():
         st.subheader("معاينة مباشرة")
         selected = st.selectbox("السجل المعروض",range(len(df)),format_func=lambda i:f"{i+1} · {df.iloc[i][name_col] or 'بدون اسم'}")
         rendered = render(df.iloc[selected])
-        st.image(rendered,use_container_width=True)
+        st.image(rendered,width="stretch")
         st.caption("يتقلص حجم الاسم تلقائيًا ليلائم العرض المحدد. المعاينة تستخدم نفس محرك التصدير.")
         buffer = io.BytesIO()
         rendered.save(buffer,format="PNG")
@@ -108,7 +109,7 @@ def certificates():
         pdf = st.checkbox("إنشاء ملف PDF مجمّع",True)
         quality = st.slider("جودة JPG",75,100,95,key="cert_quality")
         st.caption("كل عملية تُحفظ في مجلد جديد، مع ترقيم الملفات لحماية الأسماء المتكررة.")
-        if st.button("إصدار الشهادات",type="primary",disabled=not valid.any() or not output.strip(),use_container_width=True):
+        if st.button("إصدار الشهادات",type="primary",disabled=not valid.any() or not output.strip(),width="stretch"):
             start = time.perf_counter()
             progress = st.progress(0,text="جارٍ إصدار الشهادات…")
             folder, records = export_certificates(df,name_col,render,output,pdf,quality,progress.progress)

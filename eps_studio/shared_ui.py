@@ -1,13 +1,7 @@
 """Arabic-first workspace for two independent production workflows."""
 from pathlib import Path
-from dataclasses import asdict
-import io
-import json
-import time
 import streamlit as st
-from .core import (ROOT, IMAGE_EXTENSIONS, TextStyle, default_font, open_image,
-                   read_table, render_certificate, prepare_frame, frame_photo,
-                   export_certificates, export_photos)
+from .core import TextStyle, open_image, read_table, prepare_frame
 
 @st.cache_data(show_spinner=False, max_entries=8)
 def table(data, suffix):
@@ -43,7 +37,7 @@ def folder_field(label, key, default):
     with a:
         value = st.text_input(label, value=str(default), key=key)
     with b:
-        st.button("اختيار", key=key+"_pick", on_click=pick_folder, args=(key,), use_container_width=True)
+        st.button("اختيار", key=key+"_pick", on_click=pick_folder, args=(key,), width="stretch")
     return value
 
 def style_controls(title, prefix, y, size):
@@ -72,7 +66,7 @@ def result_panel(key):
     else:
         st.warning("انتهت العملية. راجع تفاصيل العناصر التي لم تكتمل أدناه.")
     st.code(str(folder), language=None)
-    st.dataframe(records, use_container_width=True, hide_index=True)
+    st.dataframe(records, width="stretch", hide_index=True)
     report = Path(folder)/"report.csv"
     if report.exists():
         st.download_button("تنزيل تقرير النتائج", report.read_bytes(), "report.csv", "text/csv", key=key+"_report")
